@@ -4,6 +4,8 @@ import os
 from datetime import datetime
 from google import genai
 
+# ---------------- PAGE CONFIG ----------------
+
 st.set_page_config(
     page_title="UPI Rakshak AI",
     page_icon="🛡️",
@@ -12,20 +14,112 @@ st.set_page_config(
 
 HISTORY_FILE = "scan_history.csv"
 
-# ---------------- LOAD SAVED HISTORY ----------------
+# ---------------- CUSTOM DESIGN ----------------
+
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(135deg, #081426, #10243d);
+    color: #ffffff;
+}
+
+[data-testid="stHeader"] {
+    background: transparent;
+}
+
+.block-container {
+    padding-top: 2rem;
+    max-width: 1200px;
+}
+
+.hero {
+    background: linear-gradient(120deg, #123d67, #176b87);
+    padding: 32px;
+    border-radius: 18px;
+    margin-bottom: 25px;
+    border: 1px solid #327b9c;
+}
+
+.hero h1 {
+    color: white;
+    font-size: 38px;
+    margin-bottom: 5px;
+}
+
+.hero p {
+    color: #d6edf7;
+    font-size: 16px;
+}
+
+.section-title {
+    color: #65d6e8;
+    font-size: 24px;
+    font-weight: bold;
+    margin-top: 20px;
+}
+
+div[data-testid="stMetric"] {
+    background: #142e49;
+    border: 1px solid #285273;
+    padding: 18px;
+    border-radius: 14px;
+}
+
+div[data-testid="stMetricLabel"] {
+    color: #c5dbea;
+}
+
+div[data-testid="stMetricValue"] {
+    color: #65d6e8;
+}
+
+.stButton > button {
+    background: #087f9c;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: bold;
+}
+
+.stButton > button:hover {
+    background: #0aa4c5;
+    color: white;
+    border: none;
+}
+
+div[data-testid="stTextArea"] textarea {
+    background: #10243d;
+    color: white;
+    border: 1px solid #327b9c;
+    border-radius: 10px;
+}
+
+div[data-testid="stSelectbox"] div {
+    border-radius: 8px;
+}
+
+.footer {
+    text-align: center;
+    color: #9db6c9;
+    padding: 25px;
+    font-size: 13px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- HISTORY STORAGE ----------------
 
 def load_history():
     if os.path.exists(HISTORY_FILE):
         try:
-            df = pd.read_csv(HISTORY_FILE)
-            return df.to_dict("records")
+            return pd.read_csv(HISTORY_FILE).to_dict("records")
         except Exception:
             return []
     return []
 
 def save_history(history):
-    df = pd.DataFrame(history)
-    df.to_csv(HISTORY_FILE, index=False)
+    pd.DataFrame(history).to_csv(HISTORY_FILE, index=False)
 
 if "history" not in st.session_state:
     st.session_state.history = load_history()
@@ -38,9 +132,13 @@ if "gemini_result" not in st.session_state:
 
 # ---------------- HEADER ----------------
 
-st.title("🛡️ UPI Rakshak AI")
-st.subheader("AI-powered suspicious message awareness system")
-st.write("Check messages for common warning signs of digital payment scams.")
+st.markdown("""
+<div class="hero">
+    <h1>🛡️ UPI Rakshak AI</h1>
+    <p>Your Smart Digital Payment Scam Awareness Assistant</p>
+    <p>Detect warning signs. Understand risks. Stay protected.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------------- MESSAGE SCANNER ----------------
 
@@ -104,7 +202,7 @@ def ask_gemini(message):
 
         Explain:
         1. Possible warning signs.
-        2. Why the message may be suspicious or safe.
+        2. Why it may be suspicious or safe.
         3. What the recipient should do safely.
 
         Remind the user never to share OTPs, UPI PINs or passwords.
@@ -128,11 +226,46 @@ def ask_gemini(message):
             return "Gemini request limit reached. Please try again later."
 
         if "401" in error_text or "403" in error_text:
-            return "Gemini API authentication failed. Please check your configuration."
+            return "Gemini authentication failed. Please check your configuration."
 
         return "Gemini analysis is temporarily unavailable. The scanner still works."
 
-# ---------------- SAMPLE MESSAGES ----------------
+# ---------------- DASHBOARD ----------------
+
+st.markdown('<div class="section-title">📊 Security Dashboard</div>',
+            unsafe_allow_html=True)
+
+history = st.session_state.history
+
+total_scanned = len(history)
+high_count = sum(item["risk"] == "High" for item in history)
+medium_count = sum(item["risk"] == "Medium" for item in history)
+low_count = sum(item["risk"] == "Low" for item in history)
+
+c1, c2, c3, c4 = st.columns(4)
+
+c1.metric("📩 Total Scanned", total_scanned)
+c2.metric("🚨 High Risk", high_count)
+c3.metric("⚠️ Medium Risk", medium_count)
+c4.metric("✅ Low Risk", low_count)
+
+if total_scanned:
+    chart_data = pd.DataFrame({
+        "Risk Level": ["High", "Medium", "Low"],
+        "Messages": [high_count, medium_count, low_count]
+    })
+
+    st.markdown("#### Risk Distribution")
+    st.bar_chart(chart_data.set_index("Risk Level"))
+else:
+    st.info("Your dashboard will display statistics after your first scan.")
+
+# ---------------- SCANNER SECTION ----------------
+
+st.divider()
+
+st.markdown('<div class="section-title">🔍 Message Security Scanner</div>',
+            unsafe_allow_html=True)
 
 samples = {
     "Choose a sample message": "",
@@ -150,12 +283,10 @@ message = st.text_area(
     "Enter a message to check",
     value=samples[selected_sample],
     height=150,
-    placeholder="Enter a fictional sample message..."
+    placeholder="Enter a fictional sample message here..."
 )
 
-# ---------------- SCAN BUTTON ----------------
-
-if st.button("🔍 Scan Message", type="primary"):
+if st.button("🔍 Scan Message", type="primary", use_container_width=True):
     if not message.strip():
         st.warning("Please enter a message first.")
     else:
@@ -171,42 +302,9 @@ if st.button("🔍 Scan Message", type="primary"):
 
         st.session_state.scan_result = result
         st.session_state.gemini_result = None
-
         st.session_state.history.insert(0, result)
 
-        # Save history permanently in local CSV
         save_history(st.session_state.history)
-
-# ---------------- DASHBOARD ----------------
-
-st.divider()
-st.header("📊 Dashboard")
-
-history = st.session_state.history
-
-total_scanned = len(history)
-high_count = sum(item["risk"] == "High" for item in history)
-medium_count = sum(item["risk"] == "Medium" for item in history)
-low_count = sum(item["risk"] == "Low" for item in history)
-
-col1, col2, col3, col4 = st.columns(4)
-
-col1.metric("Total Scanned", total_scanned)
-col2.metric("High Risk", high_count)
-col3.metric("Medium Risk", medium_count)
-col4.metric("Low Risk", low_count)
-
-if total_scanned > 0:
-    st.subheader("Risk Distribution")
-
-    chart_data = pd.DataFrame({
-        "Risk Level": ["High", "Medium", "Low"],
-        "Messages": [high_count, medium_count, low_count]
-    })
-
-    st.bar_chart(chart_data.set_index("Risk Level"))
-else:
-    st.info("Your dashboard will show statistics after your first scan.")
 
 # ---------------- LATEST RESULT ----------------
 
@@ -214,9 +312,13 @@ if st.session_state.scan_result:
     result = st.session_state.scan_result
 
     st.divider()
-    st.header("🔎 Latest Scan Result")
+    st.markdown('<div class="section-title">📋 Scan Result</div>',
+                unsafe_allow_html=True)
 
-    st.metric("Illustrative Risk Score", f'{result["score"]}/100')
+    r1, r2 = st.columns(2)
+
+    r1.metric("Illustrative Risk Score", f'{result["score"]}/100')
+    r2.metric("Risk Classification", result["risk"])
 
     if result["risk"] == "High":
         st.error("🚨 High Risk: Several warning signs were detected.")
@@ -225,35 +327,40 @@ if st.session_state.scan_result:
     else:
         st.success("✅ Low Risk: No common warning signs were detected.")
 
-    st.write("**Detected warning signs:**")
+    st.markdown("**Detected warning signs:**")
     st.write(result["warnings"])
 
     st.info(
-        "Never share your OTP, UPI PIN or password. "
+        "🛡️ Safety reminder: Never share your OTP, UPI PIN or password. "
         "Verify requests through official bank or payment-app channels."
     )
 
-    if st.button("🤖 Try Gemini AI Analysis"):
-        with st.spinner("Gemini is analyzing..."):
+    if st.button("🤖 Get Gemini AI Analysis"):
+        with st.spinner("Gemini is analyzing the message..."):
             st.session_state.gemini_result = ask_gemini(
                 result["message"]
             )
 
     if st.session_state.gemini_result:
-        st.subheader("🤖 Gemini AI Analysis")
+        st.markdown("#### 🤖 Gemini AI Analysis")
         st.write(st.session_state.gemini_result)
 
 # ---------------- SCAN HISTORY ----------------
 
 st.divider()
-st.header("📜 Scan History")
+
+st.markdown('<div class="section-title">📜 Scan History</div>',
+            unsafe_allow_html=True)
+
+history = st.session_state.history
 
 if history:
     history_df = pd.DataFrame(history)
 
     st.dataframe(
         history_df,
-        use_container_width=True
+        use_container_width=True,
+        hide_index=True
     )
 
     csv_data = history_df.to_csv(index=False).encode("utf-8")
@@ -269,6 +376,7 @@ if history:
         st.session_state.history = []
         st.session_state.scan_result = None
         st.session_state.gemini_result = None
+
         save_history([])
         st.rerun()
 else:
@@ -276,9 +384,9 @@ else:
 
 # ---------------- FOOTER ----------------
 
-st.divider()
-st.caption(
-    "UPI Rakshak AI | Educational scam-awareness project. "
-    "This tool uses keyword rules and optional AI analysis. "
-    "It is not a certified fraud detector."
-)
+st.markdown("""
+<div class="footer">
+    🛡️ UPI Rakshak AI | Built for Arthaton 2026<br>
+    Educational scam-awareness project. Not a certified fraud detector.
+</div>
+""", unsafe_allow_html=True)
