@@ -70,11 +70,11 @@ python -m streamlit run app.py
 - Better user interface.
 - Persistent scan history.
 
-## 👥 Team
+## Demo Video
 
-Project: UPI Rakshak AI
+Watch the project demo here:
 
-Team size: 2 members
+[Click here to watch the demo](https://www.youtube.com/watch?v=0pX_ZDcQVWc)
 
 ## ⚠️ Disclaimer
 
